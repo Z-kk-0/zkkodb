@@ -75,3 +75,70 @@
 - No external SQL engine dependencies
 - All logic (parsing, validation, search, storage, transactions) is implemented manually
 
+
+## Functions 
+the file structure would look something like this: 
+src/
+├── core/
+│   ├── CMakeLists.txt
+│   ├── crud.c
+│   ├── hashmap.c
+│   ├── index.c
+│   ├── parser.c
+│   ├── schema.c
+│
+├── headers/
+│   ├── crud.h
+│   ├── hashmap.h
+│   ├── index.h
+│   ├── parser.h
+│   ├── schema.h
+│
+├── utils/
+│   ├── CMakeLists.txt
+│   ├── file_utils.c
+│   ├── json_utils.c
+│
+├── main.c
+CMakeLists.txt
+
+So i will declare the Functions of the individual c files
+
+### parser.c
+```c
+
+int parse_command(const char* json_str) {
+    cJSON* root = cJSON_Parse(json_str);
+    if (!root) {
+        return 1; 
+    }
+
+    cJSON* command = cJSON_GetObjectItem(root, "command");
+    if (!command || !cJSON_IsString(command)) {
+        cJSON_Delete(root);
+        return 2;
+    }
+
+    if (strcmp(command->valuestring, "insert") == 0) {
+        // handle_insert(...)
+    } else if (strcmp(command->valuestring, "create") == 0) {
+        // handle_create(...)
+    } else if (strcmp(command->valuestring, "delete") == 0) {
+        // handle_delete(...)
+    } else {
+        cJSON_Delete(root);
+        return 3;
+    }
+
+    cJSON_Delete(root);
+    return 0;   
+}
+
+
+}
+
+int validate_syntax(const char* json_str) {
+    
+}
+
+```
