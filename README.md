@@ -154,3 +154,82 @@ data/
 
 **zkkodb** is designed for full control, minimal dependencies, and educational value. It’s a great way to understand how databases actually work under the hood – with real files, real parsing, and real rules.
 
+
+
+## Parser Module
+
+The parser module is responsible for:
+
+- Receiving and parsing JSON strings
+- Dispatching the command to its corresponding validation function (e.g. `"command": "create"` → `validate_create`)
+- Validating the syntactic and semantic correctness of each command
+- Deserializing validated commands into typed Rust structs for later processing
+
+### Command Enum
+
+We will need an enum to represent all supported commands:
+
+```rust
+enum Command {
+    Create(CreateCommand),
+    Read(ReadCommand),
+    Update(UpdateCommand),
+    Delete(DeleteCommand),
+    Unknown(String),
+}
+```
+
+### `parse_command()` Function
+
+This function performs the following steps:
+
+1. Parses the input JSON string using `serde_json`
+2. Reads the `"command"` field from the JSON
+3. Matches the value of `"command"` against known commands
+4. If the command is known:
+   - Dispatches it to the corresponding `validate_<command>()` function
+   - If validation passes, returns the corresponding `Command::<X>` variant
+5. If the command is unknown, returns `Command::Unknown(command_string)` or an error like `"Unknown command: xyz`
+
+### `validate_create()` Function
+
+This function performs the validation of the `create` command. It will have to types: table and user.The `create` command JSON must contain at least the following fields for the table:
+
+```json
+{
+  "command": "create",
+  "type": "table",
+  "tablename": "products",
+  "primary_key": "id",
+  "rows": {
+    "id": {
+      "type": "int",
+      "not_null": true,
+      "unique": true
+    },
+    "product": {
+      "type": "string",
+      "default": "Unnamed"
+    },
+    "price": {
+      "type": "float"
+    }
+  }
+}
+}
+```
+
+The create command JSON must contain at least the following fields for the user:
+
+```json
+{
+  "command": "create",
+  "type": "user",
+  "username": "admin",
+  "password": "securepassword",
+  "role": "admin"
+}
+```
+
+This structure allows for new users to be created with authentication data. The password is expected to be hashed during validation or before storage. The `role` field can later be used for access control.
+
