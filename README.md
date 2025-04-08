@@ -1,29 +1,51 @@
-# zkkodb – A Lightweight SQL-Like Database Engine in C
+# zkkodb – A Lightweight SQL-Inspired Database Engine in Rust
 
 ## Project Description
 
-**zkkodb** is a lightweight, file-based, SQL-inspired relational database system implemented in **C**. It is designed from scratch to handle structured data with features like schema validation, referential integrity, transaction logic, and persistent storage – all without relying on external database engines. The goal is to build a fully functioning database system, learning and implementing the core mechanisms manually, including indexing and parsing.
+**zkkodb** is a lightweight, file-based, SQL-inspired relational database system implemented in **Rust**. It is built from scratch to handle structured data with features like schema validation, referential integrity, user management, transaction logic, and persistent storage – all without relying on external database engines. The goal is to implement the core mechanisms manually, including indexing, command parsing, and file-backed storage, using modern Rust practices like type safety, module-based architecture, and Serde-based JSON handling.
 
 ---
 
-## Requirements & Design Decisions
+## Features & Design Decisions
 
 ### Storage
-- Each table is stored in two separate files:
+- Each **table** is stored in two separate files:
   - `table_name.schema.json` → contains column definitions and constraints
   - `table_name.data` → contains actual row data
-- All files are stored in a dedicated directory, e.g. `/var/zkkodb`
-- On startup, the engine scans the folder and loads all schemas and tables into memory
+- Each **user** is stored in its own file:
+  - `users.schema.json` (fixed schema)
+  - `users.data` (user rows, includes hashed passwords)
+- All files are stored in a dedicated directory, e.g. `./data/zkkodb/`
+- On startup, the engine scans the directory and loads all schemas and data files into memory
+
+---
+
+###  User Management
+
+- Users are stored in a special table called `users`
+- Fields: `id`, `username`, `password_hash`, `role`, `created_at`
+- Supports authentication via hashed passwords
+- Users can have roles (e.g. `admin`, `reader`, `writer`) with access control (planned)
+- Example user creation command:
+  ```json
+  {
+    "command": "create_user",
+    "username": "alice",
+    "password": "secret123",
+    "role": "admin"
+  }
+  ```
 
 ---
 
 ### Schema & Validation
-- When creating a table, the column schema is defined and stored as JSON
+
+- When creating a table, its schema is defined and stored as JSON
 - On `insert`, the engine validates:
-  - That all keys match the schema
-  - That the data types match (`INT`, `FLOAT`, `STRING`, `CHAR`)
-  - That `not_null` fields are not null
-  - That `default` values are applied if no data is provided
+  - Keys must match the schema
+  - Data types must match (`INT`, `FLOAT`, `STRING`, `CHAR`)
+  - `not_null` fields must be present
+  - `default` values are inserted if data is missing
 - Planned constraint support includes:
   - `not_null`
   - `default`
@@ -32,19 +54,22 @@
 ---
 
 ### CRUD Operations
+
 - All operations are parsed from JSON commands
-- Supported operations:
+- Supported commands:
   - `create_table`
   - `insert`
   - `select`
   - `update`
   - `delete`
-- Each command is parsed and validated against the schema before being executed
+  - `create_user` / `authenticate`
+- Each command is parsed and validated against the corresponding schema
 
 ---
 
 ### Referential Integrity
-- Foreign key references are declared in the schema:
+
+- Foreign key references can be defined in the schema:
   ```json
   {
     "user_id": {
@@ -54,91 +79,78 @@
     }
   }
   ```
-- On delete:
-  - The system checks which other tables reference the row
-  - The user is warned before deletion and can confirm or cancel
+- On deletion:
+  - The system checks whether other tables reference the row
+  - If so, it warns or blocks the operation depending on the chosen mode
 
 ---
 
-### Searching & Indexing
-- Tables are sorted by primary key (e.g. `id`) to allow efficient **binary search**
-- Binary Search is used for lookups with logarithmic complexity (`O(log n)`)
-- A custom **hash map** implementation is planned for faster access:
+### Indexing & Search
+
+- Tables are sorted by primary key to allow efficient **binary search**
+- Binary search is used for fast row lookup (`O(log n)`)
+- Planned: A custom **hash map** structure for key-based indexing
   - Keys: e.g. `id`
-  - Value: pointer or index to the row in memory or file
-  - Will include a hash function and collision resolution strategy
+  - Value: in-memory row pointer or file offset
+  - Includes hash function and collision resolution
 
 ---
 
-### Implementation Language
-- Entire project is written in **C**
-- No external SQL engine dependencies
-- All logic (parsing, validation, search, storage, transactions) is implemented manually
+##  Implementation
 
+- Entirely written in **Rust**
+- Uses:
+  - `serde` for JSON handling
+  - `mmap` or buffered file IO for persistent storage
+  - Strong typing for schema validation
+  - Module-based separation of logic
+- No SQL parser – all commands are defined as JSON objects
 
-## Functions 
-the file structure would look something like this: 
-src/
-├── core/
-│   ├── CMakeLists.txt
-│   ├── crud.c
-│   ├── hashmap.c
-│   ├── index.c
-│   ├── parser.c
-│   ├── schema.c
-│
-├── headers/
-│   ├── crud.h
-│   ├── hashmap.h
-│   ├── index.h
-│   ├── parser.h
-│   ├── schema.h
-│
-├── utils/
-│   ├── CMakeLists.txt
-│   ├── file_utils.c
-│   ├── json_utils.c
-│
-├── main.c
-CMakeLists.txt
+---
 
-So i will declare the Functions of the individual c files
-
-### parser.c
-```c
-
-int parse_command(const char* json_str) {
-    cJSON* root = cJSON_Parse(json_str);
-    if (!root) {
-        return 1; 
-    }
-
-    cJSON* command = cJSON_GetObjectItem(root, "command");
-    if (!command || !cJSON_IsString(command)) {
-        cJSON_Delete(root);
-        return 2;
-    }
-
-    if (strcmp(command->valuestring, "insert") == 0) {
-        // handle_insert(...)
-    } else if (strcmp(command->valuestring, "create") == 0) {
-        // handle_create(...)
-    } else if (strcmp(command->valuestring, "delete") == 0) {
-        // handle_delete(...)
-    } else {
-        cJSON_Delete(root);
-        return 3;
-    }
-
-    cJSON_Delete(root);
-    return 0;   
-}
-
-
-}
-
-int validate_syntax(const char* json_str) {
-    
-}
+##  Example File Structure
 
 ```
+data/
+├── users.schema.json
+├── users.data
+├── posts.schema.json
+├── posts.data
+```
+
+---
+
+## Example Command
+
+```json
+{
+  "command": "insert",
+  "table": "users",
+  "values": {
+    "id": 1,
+    "username": "admin",
+    "password_hash": "abc123",
+    "role": "admin"
+  }
+}
+```
+
+---
+
+## Planned Modules
+
+```rust
+// src/
+├── lib.rs            // Entry point
+├── parser.rs         // Parses and dispatches JSON commands
+├── schema.rs         // Schema definitions and validation
+├── crud.rs           // Insert / Select / Update / Delete logic
+├── index.rs          // Binary search and hash-based indexing
+├── hashmap.rs        // Custom in-memory hashmap implementation
+├── utils.rs          // File IO, JSON helpers, hashing etc.
+├── user.rs           // Authentication and user-related logic
+```
+---
+
+**zkkodb** is designed for full control, minimal dependencies, and educational value. It’s a great way to understand how databases actually work under the hood – with real files, real parsing, and real rules.
+
