@@ -156,6 +156,8 @@ data/
 
 
 
+
+
 ## Parser Module
 
 The parser module is responsible for:
@@ -175,6 +177,7 @@ enum Command {
     Read(ReadCommand),
     Update(UpdateCommand),
     Delete(DeleteCommand),
+    Insert(InsertCommand),
     Unknown(String),
 }
 ```
@@ -191,9 +194,15 @@ This function performs the following steps:
    - If validation passes, returns the corresponding `Command::<X>` variant
 5. If the command is unknown, returns `Command::Unknown(command_string)` or an error like `"Unknown command: xyz`
 
+
+
 ### `validate_create()` Function
 
-This function performs the validation of the `create` command. It will have to types: table and user.The `create` command JSON must contain at least the following fields for the table:
+This function performs the validation of the `create` command. It supports two types: `table` and `user`.
+
+#### Table Create Format
+
+The `create` command JSON must contain at least the following fields for the table:
 
 ```json
 {
@@ -216,10 +225,11 @@ This function performs the validation of the `create` command. It will have to t
     }
   }
 }
-}
 ```
 
-The create command JSON must contain at least the following fields for the user:
+#### User Create Format
+
+The `create` command JSON must contain at least the following fields for the user:
 
 ```json
 {
@@ -233,3 +243,104 @@ The create command JSON must contain at least the following fields for the user:
 
 This structure allows for new users to be created with authentication data. The password is expected to be hashed during validation or before storage. The `role` field can later be used for access control.
 
+
+
+### `validate_read()` Function
+
+This function validates the `read` command. It checks that the following fields are present:
+
+```json
+{
+  "command": "read",
+  "table": "products"
+}
+```
+
+Additional optional fields may include:
+
+- `columns`: an array of column names to project
+- `filter`: a condition to filter rows
+- `limit` / `offset` for pagination
+
+### `validate_insert()` Function
+
+This function validates the `insert` command. The required fields are:
+
+```json
+{
+  "command": "insert",
+  "table": "products",
+  "rows": {
+    "id": 1,
+    "price": 22.19
+  }
+}
+```
+
+The `table` field specifies where to insert the data. The `rows` object must contain all required fields defined by the table's schema. Optional fields not included will be replaced by their default values (if defined in the schema).
+
+
+
+### `validate_update()` Function
+
+This function validates the `update` command. It can be used in two contexts:
+
+#### 1. Adding New Columns to a Table
+
+```json
+{
+  "command": "update",
+  "type": "rows",
+  "table": "products",
+  "add": {
+    "category": "string"
+  }
+}
+```
+
+In this form, new columns (with types) are added to the schema of an existing table.
+
+#### 2. Updating Existing Row Values
+
+```json
+{
+  "command": "update",
+  "type": "content",
+  "table": "products",
+  "filter": "id = 1",
+  "rows": {
+    "price": 2.30
+  }
+}
+```
+
+In this form, the `filter` is used to locate one or more rows, and the `rows` field contains updated values. All keys must match existing columns in the schema.
+
+### `validate_delete()` Function
+
+This function validates the `delete` command. It supports the following two contexts:
+
+#### 1. Delete a Table
+
+```json
+{
+  "command": "delete",
+  "type": "table",
+  "table": "products"
+}
+```
+
+This form deletes the entire table and its associated data files.
+
+#### 2. Delete Contents of a Table (Filtered Rows)
+
+```json
+{
+  "command": "delete",
+  "type": "content",
+  "table": "products",
+  "filter": "id = 1"
+}
+```
+
+This form deletes rows that match the given filter condition. The `filter` field is required.
