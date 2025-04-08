@@ -162,7 +162,7 @@ data/
 
 The parser module is responsible for:
 
-- Receiving and parsing JSON strings
+- Receiving, validate and parsing JSON strings
 - Dispatching the command to its corresponding validation function (e.g. `"command": "create"` → `validate_create`)
 - Validating the syntactic and semantic correctness of each command
 - Deserializing validated commands into typed Rust structs for later processing
@@ -242,6 +242,20 @@ The `create` command JSON must contain at least the following fields for the use
 ```
 
 This structure allows for new users to be created with authentication data. The password is expected to be hashed during validation or before storage. The `role` field can later be used for access control.
+
+#### Database Create Format
+
+The `create` command can also be used to initialize a database environment:
+
+```json
+{
+  "command": "create",
+  "type": "database",
+  "name": "my_database"
+}
+```
+
+This will initialize a new logical database workspace. Later, all created tables and users will be scoped to this database
 
 
 
