@@ -160,16 +160,13 @@ data/
 
 ## Parser Module
 
-The parser module is responsible for:
+The `parser` module is responsible for:
 
-- Receiving, validate and parsing JSON strings
-- Dispatching the command to its corresponding validation function (e.g. `"command": "create"` → `validate_create`)
-- Validating the syntactic and semantic correctness of each command
-- Deserializing validated commands into typed Rust structs for later processing
+- Receiving and parsing JSON strings
+- Deserializing them into typed Rust structs (like `CreateCommand`, `ReadCommand`, etc.)
+- Returning a unified `Command` enum variant
 
 ### Command Enum
-
-We will need an enum to represent all supported commands:
 
 ```rust
 enum Command {
@@ -182,33 +179,37 @@ enum Command {
 }
 ```
 
-### `parse_command()` Function
+### `*Command` Function
 
 This function performs the following steps:
 
 1. Parses the input JSON string using `serde_json`
 2. Reads the `"command"` field from the JSON
 3. Matches the value of `"command"` against known commands
-4. If the command is known:
-   - Dispatches it to the corresponding `validate_<command>()` function
-   - If validation passes, returns the corresponding `Command::<X>` variant
-5. If the command is unknown, returns `Command::Unknown(command_string)` or an error like `"Unknown command: xyz`
+4. If the command is known, deserializes the full struct into a `Command::<X>` variant
+5. If the command is unknown, returns `Command::Unknown(command_string)` or an error
 
+---
 
+## Validator Module
+
+The `validator` module is responsible for:
+
+- Checking the semantic correctness of commands
+- Ensuring required fields are present
+- Ensuring the structure matches the database schema
 
 ### `validate_create()` Function
 
-This function performs the validation of the `create` command. It supports two types: `table` and `user`.
+Supports three types: `user`, `table`, and `database`.
 
-#### Table Create Format
-
-The `create` command JSON must contain at least the following fields for the table:
+#### For `type = "table"`
 
 ```json
 {
   "command": "create",
   "type": "table",
-  "tablename": "products",
+  "table": "products",
   "primary_key": "id",
   "rows": {
     "id": {
@@ -227,9 +228,7 @@ The `create` command JSON must contain at least the following fields for the tab
 }
 ```
 
-#### User Create Format
-
-The `create` command JSON must contain at least the following fields for the user:
+#### For `type = "user"`
 
 ```json
 {
@@ -241,11 +240,7 @@ The `create` command JSON must contain at least the following fields for the use
 }
 ```
 
-This structure allows for new users to be created with authentication data. The password is expected to be hashed during validation or before storage. The `role` field can later be used for access control.
-
-#### Database Create Format
-
-The `create` command can also be used to initialize a database environment:
+#### For `type = "database"`
 
 ```json
 {
@@ -255,13 +250,9 @@ The `create` command can also be used to initialize a database environment:
 }
 ```
 
-This will initialize a new logical database workspace. Later, all created tables and users will be scoped to this database
-
-
-
 ### `validate_read()` Function
 
-This function validates the `read` command. It checks that the following fields are present:
+Checks for the required field:
 
 ```json
 {
@@ -270,15 +261,14 @@ This function validates the `read` command. It checks that the following fields 
 }
 ```
 
-Additional optional fields may include:
+Optional fields include:
 
-- `columns`: an array of column names to project
-- `filter`: a condition to filter rows
-- `limit` / `offset` for pagination
+- `columns`
+- `filter`
+- `limit`
+- `offset`
 
 ### `validate_insert()` Function
-
-This function validates the `insert` command. The required fields are:
 
 ```json
 {
@@ -291,15 +281,9 @@ This function validates the `insert` command. The required fields are:
 }
 ```
 
-The `table` field specifies where to insert the data. The `rows` object must contain all required fields defined by the table's schema. Optional fields not included will be replaced by their default values (if defined in the schema).
-
-
-
 ### `validate_update()` Function
 
-This function validates the `update` command. It can be used in two contexts:
-
-#### 1. Adding New Columns to a Table
+#### Type: `rows`
 
 ```json
 {
@@ -307,14 +291,14 @@ This function validates the `update` command. It can be used in two contexts:
   "type": "rows",
   "table": "products",
   "add": {
-    "category": "string"
+    "category": {
+      "type": "string"
+    }
   }
 }
 ```
 
-In this form, new columns (with types) are added to the schema of an existing table.
-
-#### 2. Updating Existing Row Values
+#### Type: `content`
 
 ```json
 {
@@ -328,13 +312,9 @@ In this form, new columns (with types) are added to the schema of an existing ta
 }
 ```
 
-In this form, the `filter` is used to locate one or more rows, and the `rows` field contains updated values. All keys must match existing columns in the schema.
-
 ### `validate_delete()` Function
 
-This function validates the `delete` command. It supports the following two contexts:
-
-#### 1. Delete a Table
+#### Type: `table`
 
 ```json
 {
@@ -344,9 +324,7 @@ This function validates the `delete` command. It supports the following two cont
 }
 ```
 
-This form deletes the entire table and its associated data files.
-
-#### 2. Delete Contents of a Table (Filtered Rows)
+#### Type: `content`
 
 ```json
 {
@@ -357,4 +335,3 @@ This form deletes the entire table and its associated data files.
 }
 ```
 
-This form deletes rows that match the given filter condition. The `filter` field is required.

@@ -12,5 +12,6 @@ mod tests {
         assert_eq!(result, 4);
     }
 }
-
 mod parser;
+#[cfg(test)]
+mod zkkodb_tests;
