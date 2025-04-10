@@ -16,10 +16,11 @@ pub enum Command {
     #[serde(rename = "update")]
     Update(UpdateCommand),
     
-    /* 
+     
     #[serde(rename = "insert")]
     Insert(InsertCommand),
 
+    /*
     #[serde(rename = "delete")]
     Delete(DeleteCommand),
 
@@ -71,7 +72,7 @@ pub enum UpdateCommand {
   }
 }
 pub enum InsertCommand {
-    //TODO
+    
 }
 
 pub enum DeleteCommand {
