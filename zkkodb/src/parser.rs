@@ -6,10 +6,11 @@ use serde::Deserialize;
 pub enum Command {
     #[serde(rename = "create")]
     Create(CreateCommand),
-    /* 
+     
     #[serde(rename = "read")]
     Read(ReadCommand),
 
+    /*
     #[serde(rename = "update")]
     Update(UpdateCommand),
 
@@ -23,7 +24,7 @@ pub enum Command {
     */
 }
 
-// differenciates a User create from a table create
+// differentiates a User create from a table create
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum CreateCommand {
@@ -36,14 +37,19 @@ pub enum CreateCommand {
 
     #[serde(rename = "table")]
     Table {
-        tablename: String,
+        table: String,
         primary_key: String,
         rows: std::collections::HashMap<String, ColumnDefinition>,
     }
 }
 
-pub enum ReadCommand {
-    //TODO
+#[derive(Debug, Deserialize)]
+pub struct ReadCommand {
+    pub table: String,
+    #[serde(default)]
+    pub filter: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
 }
 
 pub enum InsertCommand {
@@ -79,7 +85,7 @@ mod tests {
         {
           "command": "create",
           "type": "table",
-          "tablename": "products",
+          "table": "products",
           "primary_key": "id",
           "rows": {
             "id": {
@@ -116,5 +122,50 @@ mod tests {
 
         let parsed: Command = serde_json::from_str(input).unwrap();
         println!("{:?}", parsed);
+    }
+
+    #[test]
+    fn test_parse_read_table() {
+        let input = r#"
+        {
+          "command": "read",
+          "table": "products",
+          "filter": {
+            "price": "20"
+          },
+          "limit": 5
+        }
+        "#;
+
+        let parsed: Command = serde_json::from_str(input).unwrap();
+        println!("{:?}", parsed);
+        match parsed {
+            Command::Read(cmd) => {
+                assert_eq!(cmd.table, "products");
+                assert_eq!(cmd.filter.get("price").unwrap(), "20");
+                assert_eq!(cmd.limit, Some(5));
+            }
+            _ => panic!("Expected read command"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_read_table_minimal() {
+        let input = r#"
+        {
+          "command": "read",
+          "table": "products"
+        }
+        "#;
+    
+        let parsed: Command = serde_json::from_str(input).unwrap();
+        match parsed {
+            Command::Read(cmd) => {
+                assert_eq!(cmd.table, "products");
+                assert!(cmd.filter.is_empty());
+                assert_eq!(cmd.limit, None);
+            },
+            _ => panic!("Expected Command::Read"),
+        }
     }
 }
