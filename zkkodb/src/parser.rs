@@ -71,8 +71,11 @@ pub enum UpdateCommand {
     rows: std::collections::HashMap<String, serde_json::Value>
   }
 }
-pub enum InsertCommand {
-    
+#[derive(Debug, Deserialize)]
+pub struct  InsertCommand {
+    pub table: String,
+    pub filter: String,
+    pub rows: std::collections::HashMap<String, serde_json::Value>
 }
 
 pub enum DeleteCommand {

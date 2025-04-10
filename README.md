@@ -284,8 +284,8 @@ This function validates the `insert` command. The required fields are:
 {
   "command": "insert",
   "table": "products",
-  "filter": "id = 1"
   "rows": {
+    "id": 1,
     "price": 22.19
   }
 }
