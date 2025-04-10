@@ -74,7 +74,6 @@ pub enum UpdateCommand {
 #[derive(Debug, Deserialize)]
 pub struct  InsertCommand {
     pub table: String,
-    pub filter: String,
     pub rows: std::collections::HashMap<String, serde_json::Value>
 }
 
@@ -244,5 +243,32 @@ mod tests {
         }
     }
     
+    #[test]
+  fn test_parse_insert() {
+      let input = r#"
+      {
+        "command": "insert",
+        "table": "products",
+        "rows": {
+          "id": 1,
+          "price": 22.19,
+          "name": "Coconut Water"
+        }
+      }
+      "#;
+
+      let parsed: Command = serde_json::from_str(input).unwrap();
+      match parsed {
+          Command::Insert(InsertCommand { table, rows }) => {
+              assert_eq!(table, "products");
+
+              assert_eq!(rows.get("id").unwrap().as_i64().unwrap(), 1);
+              assert_eq!(rows.get("price").unwrap().as_f64().unwrap(), 22.19);
+              assert_eq!(rows.get("name").unwrap().as_str().unwrap(), "Coconut Water");
+          }
+          _ => panic!("Expected Command::Insert"),
+      }
+  }
+
     
 }
