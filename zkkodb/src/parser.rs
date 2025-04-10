@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 
 // read json string, reading the command string and match it
@@ -10,10 +12,11 @@ pub enum Command {
     #[serde(rename = "read")]
     Read(ReadCommand),
 
-    /*
+    
     #[serde(rename = "update")]
     Update(UpdateCommand),
-
+    
+    /* 
     #[serde(rename = "insert")]
     Insert(InsertCommand),
 
@@ -47,11 +50,26 @@ pub enum CreateCommand {
 pub struct ReadCommand {
     pub table: String,
     #[serde(default)]
-    pub filter: std::collections::HashMap<String, String>,
+    pub filter: std::collections::HashMap<String, serde_json::Value>,
     #[serde(default)]
     pub limit: Option<usize>,
 }
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum UpdateCommand {
+  #[serde(rename = "rows")]
+  Rows {
+    table: String, 
+    add: std::collections::HashMap<String, ColumnDefinition>,
+  },
 
+  #[serde(rename = "content")]
+  Content {
+    table: String,
+    filter: String,
+    rows: std::collections::HashMap<String, serde_json::Value>
+  }
+}
 pub enum InsertCommand {
     //TODO
 }
@@ -121,7 +139,7 @@ mod tests {
         "#;
 
         let parsed: Command = serde_json::from_str(input).unwrap();
-        println!("{:?}", parsed);
+        println!("{:?}", parsed); 
     }
 
     #[test]
@@ -168,4 +186,59 @@ mod tests {
             _ => panic!("Expected Command::Read"),
         }
     }
+    #[test]
+    fn test_parse_update_rows() {
+        let input = r#"
+        {
+            "command": "update",
+            "type": "rows",
+            "table": "products",
+            "add": {
+                "category": {
+                    "type": "string"
+                }
+            }
+        }
+        "#;
+    
+        let parsed: Command = serde_json::from_str(input).unwrap();
+    
+        match parsed {
+            Command::Update(UpdateCommand::Rows { table, add }) => {
+                assert_eq!(table, "products");
+                assert_eq!(add.get("category").unwrap().col_type, "string");
+            }
+            _ => panic!("Expected Command::Update::Rows"),
+        }
+    }
+
+    #[test]
+    fn test_parse_update_content() {
+        let input = r#"
+        {
+          "command": "update",
+          "type": "content",
+          "table": "products",
+          "filter": "id = 1",
+          "rows": {
+            "price": 2.30
+          }
+        }
+        "#;
+        
+        let parsed: Command = serde_json::from_str(input).unwrap();
+    
+        match parsed {
+            Command::Update(UpdateCommand::Content { table, filter, rows }) => {
+                assert_eq!(table, "products");
+                assert_eq!(filter, "id = 1");
+    
+                let price = rows.get("price").unwrap().as_f64().unwrap();
+                assert_eq!(price, 2.30);
+            }
+            _ => panic!("Expected Command::Update::Content"),
+        }
+    }
+    
+    
 }
