@@ -20,10 +20,11 @@ pub enum Command {
     #[serde(rename = "insert")]
     Insert(InsertCommand),
 
-    /*
+    
     #[serde(rename = "delete")]
     Delete(DeleteCommand),
 
+    /*
     Unknown(String)
     */
 }
@@ -76,9 +77,18 @@ pub struct  InsertCommand {
     pub table: String,
     pub rows: std::collections::HashMap<String, serde_json::Value>
 }
-
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
 pub enum DeleteCommand {
-    //TODO
+    #[serde(rename = "table")]
+    Table {
+      table: String
+    },
+    #[serde(rename = "content")]
+    Content {
+      table: String,
+      filter: String
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -269,6 +279,46 @@ mod tests {
           _ => panic!("Expected Command::Insert"),
       }
   }
+
+  #[test]
+  fn test_parse_delete_table() {
+      let input = r#"
+      {
+        "command": "delete",
+        "type": "table",
+        "table": "products"
+      }
+      "#;
+
+      let parsed: Command = serde_json::from_str(input).unwrap();
+      match parsed {
+          Command::Delete(DeleteCommand::Table { table }) => {
+              assert_eq!(table, "products");
+          }
+          _ => panic!("Expected Command::Delete::Table"),
+      }
+  }
+
+  #[test]
+  fn test_parse_delete_content() {
+      let input = r#"
+      {
+        "command": "delete",
+        "type": "content",
+        "table": "products",
+        "filter": "price > 10"
+      }
+      "#;
+
+      let parsed: Command = serde_json::from_str(input).unwrap();
+      match parsed {
+          Command::Delete(DeleteCommand::Content { table, filter }) => {
+              assert_eq!(table, "products");
+              assert_eq!(filter, "price > 10");
+          }
+          _ => panic!("Expected Command::Delete::Content"),
+      }
+}
 
     
 }
